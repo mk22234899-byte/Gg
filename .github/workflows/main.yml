@@ -1,0 +1,48 @@
+name: Android VNC
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y wget unzip xfce4 xfce4-goodies novnc websockify
+
+      - name: Download Android Emulator
+        run: |
+          mkdir android-sdk
+          cd android-sdk
+          wget https://dl.google.com/android/repository/platform-tools-latest-linux.zip
+          unzip platform-tools-latest-linux.zip
+          wget https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip
+          unzip commandlinetools-linux-8512546_latest.zip -d cmdline-tools
+
+      - name: Create Android AVD
+        run: |
+          yes | sudo apt install qemu-kvm
+          echo "no" | ./android-sdk/cmdline-tools/bin/sdkmanager --licenses
+          ./android-sdk/cmdline-tools/bin/sdkmanager "system-images;android-30;google_apis;x86_64"
+          echo "no" | ./android-sdk/cmdline-tools/bin/avdmanager create avd --force --name test --package "system-images;android-30;google_apis;x86_64"
+
+      - name: Start VNC
+        run: |
+          export DISPLAY=:1
+          Xvfb :1 -screen 0 1280x720x24 &
+          sleep 5
+          websockify --web=/usr/share/novnc 6080 localhost:5900 &
+
+      - name: Start Android Emulator
+        run: |
+          export DISPLAY=:1
+          ~/.android/avd/test.avd/../../emulator/emulator -avd test -no-snapshot -gpu swiftshader_indirect -no-boot-anim -noaudio -no-window &
+          sleep 60
+
+      - name: Show noVNC URL
+        run: |
+          echo "⭐ رابط الدخول للاندرويد:"
+          echo "https://$(hostname)-6080.githubcontainer.io"
