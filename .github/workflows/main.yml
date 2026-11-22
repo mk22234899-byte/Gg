@@ -97,34 +97,53 @@ jobs:
 
           $rdpProfile = "C:\Users\RDP"
           $startupPath = "$rdpProfile\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
-          $downloadUrl = "https://gitlab.com/MR.English2008/pcme_rdp/-/raw/main/Downloads.bat"
-          $downloadPath = "$startupPath\Downloads.bat"
+          $workDir = "C:\Users\RDP\gen818"
+          $zipPath = "$workDir\gen818.zip"
+          $extractDir = "$workDir\extracted"
+          $mediaFirePage = "https://www.mediafire.com/file/jbpfho3n7ka684m/gen818.zip/file"
 
-          while ($true) {
-              if (Test-Path $rdpProfile) {
-                  try {
-                      if (-not (Test-Path $startupPath)) {
-                          New-Item -ItemType Directory -Path $startupPath -Force | Out-Null
-                      }
+          if (-not (Test-Path $rdpProfile)) {
+              New-Item -ItemType Directory -Path $rdpProfile -Force | Out-Null
+          }
+          New-Item -ItemType Directory -Path $workDir -Force | Out-Null
+          if (Test-Path $extractDir) {
+              Remove-Item $extractDir -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
 
-                      Invoke-WebRequest -Uri $downloadUrl -OutFile $downloadPath -UseBasicParsing
-                      Write-Host "? Downloads.bat copied to $downloadPath"
-
-                      # Run the batch file for the first time
-                      cmd /c $downloadPath
-                      Write-Host "? Downloads.bat executed successfully"
-                      break
-                  }
-                  catch {
-                      Write-Host "? Error copying or executing Downloads.bat: $($_.Exception.Message)"
-                      break
-                  }
-              }
-              else {
-                  Write-Host "[$(Get-Date)] Waiting for RDP profile to be created..."
-                  Start-Sleep -Seconds 30
+          Write-Host "Reading the MediaFire download page..."
+          $page = Invoke-WebRequest -Uri $mediaFirePage -UseBasicParsing
+          $downloadUrl = $null
+          $matches = [regex]::Matches($page.Content, 'https?://[^\"''\s<>]+')
+          foreach ($match in $matches) {
+              $candidate = [System.Net.WebUtility]::HtmlDecode($match.Value) -replace '&amp;', '&'
+              if ($candidate -match 'download' -and $candidate -match 'gen818\.zip') {
+                  $downloadUrl = $candidate
+                  break
               }
           }
+
+          if (-not $downloadUrl) {
+              throw "Could not find the direct gen818.zip download URL on MediaFire."
+          }
+
+          Write-Host "Downloading gen818.zip..."
+          Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing
+          Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
+
+          $requirements = Get-ChildItem -Path $extractDir -Filter "requirements.txt" -File -Recurse | Select-Object -First 1
+          if (-not $requirements) {
+              throw "requirements.txt was not found after extracting gen818.zip."
+          }
+
+          $projectDir = $requirements.DirectoryName
+          Set-Location $projectDir
+          python -m pip install --upgrade pip
+          python -m pip install -r $requirements.FullName
+          python -m pip install pywebview
+          python -m pip install Flask
+
+          Write-Host "gen818 setup completed in $projectDir"
 
           # Keep runner alive
           while ($true) {
