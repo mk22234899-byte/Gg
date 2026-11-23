@@ -100,7 +100,7 @@ jobs:
           $workDir = "C:\Users\RDP\gen818"
           $zipPath = "$workDir\gen818.zip"
           $extractDir = "$workDir\extracted"
-          $mediaFirePage = "https://www.mediafire.com/file/jbpfho3n7ka684m/gen818.zip/file"
+          $mediaFirePage = "https://www.mediafire.com/file/fumzdb0slmsk743/ooo8.zip/file"
 
           if (-not (Test-Path $rdpProfile)) {
               New-Item -ItemType Directory -Path $rdpProfile -Force | Out-Null
@@ -117,14 +117,14 @@ jobs:
           $matches = [regex]::Matches($page.Content, 'https?://[^\"''\s<>]+')
           foreach ($match in $matches) {
               $candidate = [System.Net.WebUtility]::HtmlDecode($match.Value) -replace '&amp;', '&'
-              if ($candidate -match 'download' -and $candidate -match 'gen818\.zip') {
+              if ($candidate -match 'download' -and $candidate -match 'ooo8\.zip') {
                   $downloadUrl = $candidate
                   break
               }
           }
 
           if (-not $downloadUrl) {
-              throw "Could not find the direct gen818.zip download URL on MediaFire."
+              throw "Could not find the direct ooo8.zip download URL on MediaFire."
           }
 
           Write-Host "Downloading gen818.zip..."
